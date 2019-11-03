@@ -1,0 +1,6 @@
+<Mod
+	name="Dev Settings"
+	description="Don't pause on lost focus, verbose logging"
+	request_no_api_restrictions="0" 
+> 
+</Mod>

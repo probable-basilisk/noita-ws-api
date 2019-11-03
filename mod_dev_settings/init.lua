@@ -1,0 +1,1 @@
+ModMagicNumbersFileAdd( "mods/mod_dev_settings/files/magic_numbers.xml" )
