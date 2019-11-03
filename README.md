@@ -30,7 +30,8 @@ cd {the_example_servers_dir}
 npm install
 ```
 
-To run the webconsole, then
+## Example: webconsole
+From the `servers` directory, run:
 ```
 node main_console.js
 ```
@@ -43,6 +44,16 @@ hello()
 GamePrintImportant("Big Message", "Sub Message")
 print_entity_info(get_player())
 ```
+
+## Example: twitch interaction
+From the `servers` directory, run:
+```
+node main_twitch.js your_twitch_channel_name
+```
+
+Then start up Noita. You should see a voting thingy on the right side--
+users in the specified twitch channel can type the appropriate numbers
+to vote on things to happen in your game.
 
 ## API Overview
 
