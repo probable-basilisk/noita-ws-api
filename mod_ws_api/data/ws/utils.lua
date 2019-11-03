@@ -1,5 +1,7 @@
 function hello()
-  print("hello")
+  GamePrintImportant("Hello", "Hello")
+  GamePrint("Hello")
+  print("Hello")
 end
 
 function get_player()
