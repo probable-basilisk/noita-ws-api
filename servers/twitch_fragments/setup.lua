@@ -1,6 +1,7 @@
 twitch_display_lines = {}
 gui = gui or GuiCreate()
 xpos = xpos or 80
+math.randomseed(os.time())
 
 function draw_twitch_display()
   GuiStartFrame( gui )
