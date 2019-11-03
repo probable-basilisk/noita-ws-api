@@ -1,0 +1,6 @@
+<Mod
+	name="ws_api"
+	description="Websocket API"
+	request_no_api_restrictions="1"
+>
+</Mod>
