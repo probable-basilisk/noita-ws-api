@@ -21,12 +21,17 @@ if not pollws then
   print("FFI was OK")
 
   function open_socket(url, scratch_size)
-    if not scratch_size then scratch_size = 64000 end
+    -- might as well have a comfortable megabyte of space
+    if not scratch_size then scratch_size = 1000000 end
     local res = {
       _socket = pollws.pollws_open(url),
       _scratch = ffi.new("int8_t[?]", scratch_size),
       _scratch_size = scratch_size
     }
+    function res:set_scratch_size(scratch_size)
+      self._scratch = ffi.new("int8_t[?]", scratch_size)
+      self._scratch_size = scratch_size
+    end
     function res:poll()
       if not self._socket then return end
       local msg_size = pollws.pollws_pop(self._socket, self._scratch, self._scratch_size)
@@ -53,6 +58,11 @@ local main_socket = open_socket(HOST_URL)
 main_socket:poll()
 
 local printing_to_socket = false
+
+local function set_scratch_size(scratch_size)
+  if not scratch_size then error("Scratch size cannot be nil") end
+  main_socket:set_scratch_size(scratch_size)
+end
 
 local function socket_print(str)
   local msg = ">" .. str
@@ -96,6 +106,28 @@ local function reload_utils()
   cprint("Utils loaded.")
 end
 
+local _persistant_funcs = {}
+
+local function add_persistant_func(name, f)
+  _persistant_funcs[name] = f
+end
+
+local function remove_persistant_func(name)
+  _persistant_funcs[name] = nil
+end
+
+local function run_persistant_funcs()
+  for fname, f in pairs(_persistant_funcs) do
+    pcall(f, fname)
+  end
+end
+
+local function _dofile(fn)
+  local s = loadfile(fn)
+  setfenv(s, console_env)
+  return s()
+end
+
 local function new_console_env()
   console_env = {}
   for k, v in pairs(getfenv()) do
@@ -108,6 +140,9 @@ local function new_console_env()
   console_env.socket_print = socket_print
   console_env.rawprint = print
   console_env.reload_utils = reload_utils
+  console_env.add_persistant_func = add_persistant_func
+  console_env.remove_persistant_func = remove_persistant_func
+  console_env.dofile = _dofile
   
   reload_utils()
 end
@@ -139,4 +174,5 @@ _ws_main = function()
   if count % 60 == 0 then
     main_socket:send('{"kind": "heartbeat", "source": "noita"}')
   end
+  run_persistant_funcs()
 end
