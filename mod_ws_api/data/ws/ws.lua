@@ -124,6 +124,11 @@ end
 
 local function _dofile(fn)
   local s = loadfile(fn)
+  if type(s) == 'string' then
+    -- work around Noita's broken loadfile that returns error
+    -- message as first argument rather than as second
+    error(fn .. ": " .. s)
+  end
   setfenv(s, console_env)
   return s()
 end
