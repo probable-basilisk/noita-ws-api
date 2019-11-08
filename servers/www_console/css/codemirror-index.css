@@ -1,6 +1,6 @@
 html, body {
     height: 100%;
-    background-color: #282a36;
+    background-color: #000000;
 }
 
 body {
@@ -13,6 +13,7 @@ body {
     position: relative;
     height: 100vh;
     display: flex;
+    flex-direction: column;
     width: 100%;
     will-change: overflow;
 }
@@ -48,4 +49,14 @@ body {
     color: #FF0000 !important;
     font-weight: bold;
     background-color: #000;
+}
+
+.row {
+    flex: 1;
+    margin: 10px;
+}
+
+.linerow {
+    flex: 0.05;
+    margin: 10px;
 }
