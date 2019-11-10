@@ -10,6 +10,8 @@ var repl = null;
 var lineWindow = null;
 var fit = null;
 
+var commandHistory = [];
+
 function getToken() {
   var parts = document.URL.split("/");
   if (parts[parts.length - 1].length == 32) {
@@ -92,9 +94,35 @@ function initCodeMirror() {
     "Enter": function(cm) {
       const val = cm.getValue();
       console.log(val);
+      if(val == "") {
+        return;
+      }
       remoteEval(val);
+      if(commandHistory.indexOf(val) < 0) {
+        commandHistory.push(val);
+      }
       replPrint("EVAL> " + val);
       lineWindow.setValue("");
+    },
+    "Up": function(cm) {
+      console.log("UP");
+      let hpos = commandHistory.indexOf(cm.getValue());
+      console.log(hpos);
+      if(hpos > 0) {
+        cm.setValue(commandHistory[hpos-1]);
+      } else if(hpos == 0) {
+        // don't do anything
+      } else {
+        cm.setValue(commandHistory[commandHistory.length-1]);
+      }
+    },
+    "Down": function(cm) {
+      console.log("DOWN");
+      let hpos = commandHistory.indexOf(cm.getValue());
+      console.log(hpos);
+      if(hpos >= 0 && hpos < commandHistory.length - 1) {
+        cm.setValue(commandHistory[hpos+1]);
+      }
     }
   });
 
@@ -110,41 +138,7 @@ function initCodeMirror() {
 
   fit.fit();
 
-  // repl.prompt = () => {
-  //     repl.write('\r\n> ');
-  // };
-
   repl.writeln('Noita console');
   repl.writeln('(Note that this panel is for output only)');
   repl.writeln('');
-  //repl.prompt();
-
-  // repl.onKey(e => {
-  //     const printable = !e.domEvent.altKey && !e.domEvent.altGraphKey && !e.domEvent.ctrlKey && !e.domEvent.metaKey;
-
-  //     if (e.domEvent.keyCode === 13) {
-  //       if(repl.buffer.cursorX == 0) {
-  //         console.log("ZEROX?");
-  //         repl.prompt();
-  //         return;
-  //       }
-  //       let lastLine = repl.buffer.getLine(repl.buffer.cursorY).translateToString(true);
-  //       lastLine = lastLine.slice(2);
-  //       console.log(lastLine);
-  //       repl.prompt();
-  //       remoteEval(lastLine);
-  //     } else if (e.domEvent.keyCode === 8) {
-  //         // Do not delete the prompt
-  //         if (repl._core.buffer.x > 2) {
-  //             repl.write('\b \b');
-  //         }
-  //     } else if (printable) {
-  //         repl.write(e.key);
-  //     }
-  // });
-
-  // repl.onData(function(data) {
-  //   console.log(data);
-  //   repl.write(data);
-  // });
 }
