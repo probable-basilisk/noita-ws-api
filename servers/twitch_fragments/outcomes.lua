@@ -1,4 +1,4 @@
-dofile( "data/scripts/perks/perk.lua")
+dofile("data/scripts/perks/perk.lua")
 
 local mats = CellFactory_GetAllLiquids()
 

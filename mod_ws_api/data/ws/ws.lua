@@ -106,18 +106,18 @@ local function reload_utils()
   cprint("Utils loaded.")
 end
 
-local _persistant_funcs = {}
+local _persistent_funcs = {}
 
-local function add_persistant_func(name, f)
-  _persistant_funcs[name] = f
+local function add_persistent_func(name, f)
+  _persistent_funcs[name] = f
 end
 
-local function remove_persistant_func(name)
-  _persistant_funcs[name] = nil
+local function remove_persistent_func(name)
+  _persistent_funcs[name] = nil
 end
 
-local function run_persistant_funcs()
-  for fname, f in pairs(_persistant_funcs) do
+local function run_persistent_funcs()
+  for fname, f in pairs(_persistent_funcs) do
     pcall(f, fname)
   end
 end
@@ -133,6 +133,36 @@ local function _dofile(fn)
   return s()
 end
 
+local function _strinfo(v)
+  if v == nil then return "nil" end
+  local vtype = type(v)
+  if vtype == "number" then
+    return ("%0.4f"):format(v)
+  elseif vtype == "string" then
+    return '"' .. v .. '"'
+  elseif vtype == "boolean" then
+    return tostring(v)
+  else
+    return ("[%s] %s"):format(vtype, tostring(v))
+  end
+end
+
+local function strinfo(...)
+  local frags = {}
+  local nargs = select('#', ...)
+  if nargs == 0 then
+    return "[no value]"
+  end
+  for idx = 1, nargs do
+    frags[idx] = _strinfo(select(idx, ...))
+  end
+  return table.concat(frags, ", ")
+end
+
+local function info(...)
+  cprint(strinfo(...))
+end
+
 local function new_console_env()
   console_env = {}
   for k, v in pairs(getfenv()) do
@@ -145,24 +175,43 @@ local function new_console_env()
   console_env.socket_print = socket_print
   console_env.rawprint = print
   console_env.reload_utils = reload_utils
-  console_env.add_persistant_func = add_persistant_func
-  console_env.remove_persistant_func = remove_persistant_func
+  console_env.add_persistent_func = add_persistent_func
+  console_env.set_persistent_func = add_persistent_func -- alias
+  console_env.remove_persistent_func = remove_persistent_func
+  console_env.strinfo = strinfo
+  console_env.info = info
   console_env.dofile = _dofile
   
   reload_utils()
 end
 new_console_env()
 
+local function _collect(happy, ...)
+  if happy then
+    return happy, strinfo(...)
+  else
+    return happy, ...
+  end
+end
+
 local function do_command(msg)
-  local f, err = loadstring(msg)
-  if not f then
-    cprint("ERR> Parse error: " .. tostring(err))
-    return
+  local f, err = nil, nil
+  if not msg:find("\n") then
+    -- if this is a single line, try putting "return " in front
+    -- (convenience to allow us to inspect values)
+    f, err = loadstring("return " .. msg)
+  end
+  if not f then -- multiline, or not an expression
+    f, err = loadstring(msg)
+    if not f then
+      cprint("ERR> Parse error: " .. tostring(err))
+      return
+    end
   end
   setfenv(f, console_env)
-  local happy, retval = pcall(f)
+  local happy, retval = _collect(pcall(f))
   if happy then
-    cprint("OK>")
+    cprint("RES> " .. tostring(retval))
   else
     cprint("ERR> " .. tostring(retval))
   end
@@ -179,5 +228,6 @@ _ws_main = function()
   if count % 60 == 0 then
     main_socket:send('{"kind": "heartbeat", "source": "noita"}')
   end
-  run_persistant_funcs()
+  run_persistent_funcs()
+  wake_up_waiting_threads(1) -- from coroutines.lua
 end

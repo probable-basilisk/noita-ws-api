@@ -56,6 +56,7 @@ wss.on('connection', function connection(ws) {
           noita = ws;
           ws.send(`GamePrint('WS connected as ${cname}')`);
           ws.send("set_print_to_socket(true)");
+          ws.send("print('Noita connected')");
         }
       } else if (jdata["source"] === "console") {
         if (con != ws) {

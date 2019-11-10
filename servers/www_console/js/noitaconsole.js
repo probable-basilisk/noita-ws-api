@@ -12,6 +12,19 @@ var fit = null;
 
 var commandHistory = [];
 
+function ansiRGB(r, g, b) {
+  return `\x1b[38;2;${r};${g};${b}m`
+}
+
+function ansiBgRGB(r, g, b) {
+  return `\x1b[48;2;${r};${g};${b}m`
+}
+
+function ansiReset() {
+  return '\x1b[0m'
+}
+
+
 function getToken() {
   var parts = document.URL.split("/");
   if (parts[parts.length - 1].length == 32) {
@@ -35,7 +48,6 @@ function initConnection(url) {
   });
 
   connection.addEventListener('message', function (event) {
-    console.log(event.data);
     var jdata = JSON.parse(event.data);
     if (jdata["kind"] === "print") {
       replPrint(jdata["text"]);
@@ -46,7 +58,6 @@ function initConnection(url) {
 }
 
 function remoteEval(code) {
-  console.log("Would eval: " + code);
   if(code[0] === '!') {
     let parts = code.slice(1).split(" ");
     if(parts[0] === "connect") {
@@ -61,11 +72,14 @@ function remoteEval(code) {
 
 function replPrint(message) {
   message = message.replace(/\n/g, "\r\n");
+  if(message.indexOf("ERR>") == 0) {
+    message = ansiRGB(200, 0, 0) + message + ansiReset();
+  } else if(message.indexOf("RES>") == 0) {
+    message = ansiRGB(100, 100, 255) + message + ansiReset();
+  } else if(message.indexOf("EVAL>") == 0) {
+    message = ansiRGB(100, 255, 100) + message + ansiReset();
+  }
   repl.writeln(message);
-}
-
-function printArt() {
-  repl.print("Noita console");
 }
 
 function initCodeMirror() {
@@ -78,7 +92,6 @@ function initCodeMirror() {
 
   codeWindow.setOption("extraKeys", {
     "Shift-Enter": function(cm) {
-      console.log(cm.getValue());
       remoteEval(cm.getValue());
       replPrint("EVAL> [buffer]");
     }
@@ -93,7 +106,6 @@ function initCodeMirror() {
   lineWindow.setOption("extraKeys", {
     "Enter": function(cm) {
       const val = cm.getValue();
-      console.log(val);
       if(val == "") {
         return;
       }
@@ -105,9 +117,7 @@ function initCodeMirror() {
       lineWindow.setValue("");
     },
     "Up": function(cm) {
-      console.log("UP");
       let hpos = commandHistory.indexOf(cm.getValue());
-      console.log(hpos);
       if(hpos > 0) {
         cm.setValue(commandHistory[hpos-1]);
       } else if(hpos == 0) {
@@ -117,9 +127,7 @@ function initCodeMirror() {
       }
     },
     "Down": function(cm) {
-      console.log("DOWN");
       let hpos = commandHistory.indexOf(cm.getValue());
-      console.log(hpos);
       if(hpos >= 0 && hpos < commandHistory.length - 1) {
         cm.setValue(commandHistory[hpos+1]);
       }
