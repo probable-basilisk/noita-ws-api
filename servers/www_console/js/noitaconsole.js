@@ -1,13 +1,29 @@
 $(function(){
-    initCodeMirror();
-    printArt();
-    initConnection();
+  initCodeMirror();
+  initConnection();
 });
 
-var repl = null;
+var codeWindow = null;
 var connection = null;
 var connected = false;
-var targetPlayer = 1;
+var repl = null;
+var lineWindow = null;
+var fit = null;
+
+var commandHistory = [];
+
+function ansiRGB(r, g, b) {
+  return `\x1b[38;2;${r};${g};${b}m`
+}
+
+function ansiBgRGB(r, g, b) {
+  return `\x1b[48;2;${r};${g};${b}m`
+}
+
+function ansiReset() {
+  return '\x1b[0m'
+}
+
 
 function getToken() {
   var parts = document.URL.split("/");
@@ -32,7 +48,6 @@ function initConnection(url) {
   });
 
   connection.addEventListener('message', function (event) {
-    console.log(event.data);
     var jdata = JSON.parse(event.data);
     if (jdata["kind"] === "print") {
       replPrint(jdata["text"]);
@@ -43,7 +58,6 @@ function initConnection(url) {
 }
 
 function remoteEval(code) {
-  console.log("Would eval: " + code);
   if(code[0] === '!') {
     let parts = code.slice(1).split(" ");
     if(parts[0] === "connect") {
@@ -57,108 +71,82 @@ function remoteEval(code) {
 }
 
 function replPrint(message) {
-  repl.print(message);
-}
-
-function printArt() {
-  repl.print("Noita console");
-}
-
-function bracketsBalanced(code) {
-    var length = code.length;
-    var delimiter = '';
-    var brackets = [];
-    var matching = {
-        ')': '(',
-        ']': '[',
-        '}': '{'
-    };
-
-    for (var i = 0; i < length; i++) {
-        var char = code.charAt(i);
-
-        switch (delimiter) {
-        case "'":
-        case '"':
-        default:
-            switch (char) {
-            case "'":
-            case '"':
-                delimiter = char;
-                break;
-            case "(":
-            case "[":
-            case "{":
-                brackets.push(char);
-                break;
-            case ")":
-            case "]":
-            case "}":
-                if (!brackets.length || matching[char] !== brackets.pop()) {
-                    repl.print(new SyntaxError("Unexpected closing bracket: '" + char + "'"), "error");
-                    return null;
-                }
-            }
-        }
-    }
-
-    return brackets.length ? false : true;
-}
-
-function doEndBalanced(code) {
-    // TODO: function doesn't work if there isn't a space between
-    // 'function' and the opening '('
-    var startTokens = new Set(["function", "do", "then", "else"]);
-    var endTokens = new Set(["end"]);
-
-    codeTokens = code.split(/\s+/);
-    var nestLevel = 0;
-    var curtoken;
-
-    for(var i = 0; i < codeTokens.length; ++i) {
-        curtoken = codeTokens[i];
-        if(startTokens.has(curtoken)) {
-            nestLevel += 1;
-        } else if(endTokens.has(curtoken)) {
-            nestLevel -= 1;
-        }
-
-        // unrecoverable situation like "do [...] end end"
-        if(nestLevel < 0) {
-            return null;
-        }
-    }
-
-    return (nestLevel == 0);
+  message = message.replace(/\n/g, "\r\n");
+  if(message.indexOf("ERR>") == 0) {
+    message = ansiRGB(200, 0, 0) + message + ansiReset();
+  } else if(message.indexOf("RES>") == 0) {
+    message = ansiRGB(100, 100, 255) + message + ansiReset();
+  } else if(message.indexOf("EVAL>") == 0) {
+    message = ansiRGB(100, 255, 100) + message + ansiReset();
+  }
+  repl.writeln(message);
 }
 
 function initCodeMirror() {
-    var geval = eval;
+  codeWindow = CodeMirror.fromTextArea(document.getElementById("code"), {
+    value: "-- Put multiline Lua stuff here\n",
+    mode:  "lua",
+    theme:  "dracula",
+    lineNumbers: true
+  });
 
-    repl = new CodeMirrorREPL("repl", {
-        mode: "lua",
-        theme: "dracula"
-    });
+  codeWindow.setOption("extraKeys", {
+    "Shift-Enter": function(cm) {
+      remoteEval(cm.getValue());
+      replPrint("EVAL> [buffer]");
+    }
+  });
 
-    $("#console-column").click(function() {
-        repl.mirror.focus();
-    });
+  lineWindow = CodeMirror.fromTextArea(document.getElementById("replinput"), {
+    value: "",
+    mode:  "lua",
+    theme:  "dracula"
+  });
 
-    window.print = function (message, mclass) {
-        repl.print(message, mclass || "message");
-    };
+  lineWindow.setOption("extraKeys", {
+    "Enter": function(cm) {
+      const val = cm.getValue();
+      if(val == "") {
+        return;
+      }
+      remoteEval(val);
+      if(commandHistory.indexOf(val) < 0) {
+        commandHistory.push(val);
+      }
+      replPrint("EVAL> " + val);
+      lineWindow.setValue("");
+    },
+    "Up": function(cm) {
+      let hpos = commandHistory.indexOf(cm.getValue());
+      if(hpos > 0) {
+        cm.setValue(commandHistory[hpos-1]);
+      } else if(hpos == 0) {
+        // don't do anything
+      } else {
+        cm.setValue(commandHistory[commandHistory.length-1]);
+      }
+    },
+    "Down": function(cm) {
+      let hpos = commandHistory.indexOf(cm.getValue());
+      if(hpos >= 0 && hpos < commandHistory.length - 1) {
+        cm.setValue(commandHistory[hpos+1]);
+      }
+    }
+  });
 
-    repl.isBalanced = function (code) {
-        var b0 = true; //bracketsBalanced(code);
-        var b1 = doEndBalanced(code);
-        if(b0 == null || b1 == null) {
-            return null;
-        } else {
-            return b0 && b1;
-        }
-    };
+  repl = new Terminal({
+    theme: {
+      background: '#111'
+    }
+  });
+  fit = new FitAddon.FitAddon();
+  repl.loadAddon(fit);
+  repl.open(document.getElementById("repl"));
+  repl._initialized = true;
 
-    repl.eval = function (code) {
-        remoteEval(code);
-    };
+  fit.fit();
+
+  repl.writeln('Noita console');
+  repl.writeln('(Note that this panel is for output only)');
+  repl.writeln('');
 }

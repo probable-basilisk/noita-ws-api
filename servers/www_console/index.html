@@ -5,20 +5,30 @@
         <title>noitacon</title>
 
         <link rel="stylesheet" href="css/codemirror-index.css">
-        <link rel="stylesheet" href="css/codemirror-repl.css">
+        <link rel="stylesheet" href="lib/codemirror.css">
+        <link rel="stylesheet" href="lib/xterm.css">
         <link rel="stylesheet" href="css/themes/dracula.css">
 
         <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-        <script src="lib/codemirror-repl.js"></script>
-        <script src="lib/modes/lua.js"></script>
-        <script src="lib/modes/javascript.js"></script>
+        <script src="lib/codemirror.js"></script>
+        <script src="lib/modes/lua/lua.js"></script>
+        <script src="lib/xterm.js"></script>
+        <script src="lib/xterm-addon-fit.js"></script>
         <script src="js/noitaconsole.js"></script>
     </head>
     <body>
         <div id="content-area">
-            <div class="col-md-12 console-column" id="console-column">
-                <textarea id="repl" autofocus="true"></textarea>
-            </div>
+            <div id="repl" class="row"></div>
+<div id="linecon" class="linerow" id="line-column">
+<textarea id="replinput" autofocus="true">GamePrintImportant("Hello", "") -- single-line input here</textarea></div>
+<div id="codecon" class="row" id="console-column">
+<textarea id="code" autofocus="true">
+-- This panel is for executing multiline chunks of lua code;
+-- press shift+enter to run the code in this panel
+for i = 1, 10 do
+  print(i)
+end
+</textarea></div>
         </div>
     </body>
 </html>

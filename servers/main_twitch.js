@@ -7,7 +7,7 @@ const fs = require('fs');
 const CHANNEL =  process.argv[2];
 
 const WS_PORT = 9090;
-const SECS_BETWEEN_VOTES = 300;
+const SECS_BETWEEN_VOTES = 10;
 const SECS_FOR_VOTE = 60;
 
 const wss = new ws.Server({ port: WS_PORT });
@@ -165,7 +165,8 @@ chatClient.connect().then((_client) => {
   chatClient.join(CHANNEL);
 
   chatClient.on("message", function (channel, userstate, message, self) {
-    console.log(message);
+    // console.log(message);
+    // console.log(userstate);
     if (self) return; // Don't listen to my own messages..
     if (userstate["message-type"] === "chat") {
       handleVote(userstate['user-id'], message);
