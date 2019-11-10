@@ -76,4 +76,4 @@ function do_winner()
   clear_display()
 end
 
-add_persistant_func("twitch_gui", draw_twitch_display)
+add_persistent_func("twitch_gui", draw_twitch_display)
