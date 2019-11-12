@@ -1,14 +1,14 @@
-//require('dotenv').config();
+require('dotenv').config();
 const ws = require('ws');
 const tmi = require('tmi.js');
 const fs = require('fs');
 
 // eh...
-const CHANNEL =  process.argv[2];
+const CHANNEL =  process.argv[2] || process.env.CHANNEL_NAME;
 
 const WS_PORT = 9090;
-const SECS_BETWEEN_VOTES = 10;
-const SECS_FOR_VOTE = 60;
+const SECS_BETWEEN_VOTES = process.env.SECS_BETWEEN_VOTES || 10;
+const SECS_FOR_VOTE = process.env.SECS_FOR_VOTE || 60;
 
 const wss = new ws.Server({ port: WS_PORT });
 console.log("WS listening on " + WS_PORT);
@@ -66,6 +66,7 @@ wss.on('connection', function connection(ws) {
         ws.send(`GamePrint('WS connected as ${cname}')`);
         ws.send("set_print_to_socket(true)");
         noitaDoFile("twitch_fragments/setup.lua");
+        noitaDoFile("twitch_fragments/potion_material.lua");
         noitaDoFile("twitch_fragments/outcomes.lua");
       }
     }

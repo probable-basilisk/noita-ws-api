@@ -1,11 +1,13 @@
 twitch_display_lines = {}
 gui = gui or GuiCreate()
 xpos = xpos or 80
+ypos = ypos or 30
+randomOnNoVotes = false
 math.randomseed(os.time())
 
 function draw_twitch_display()
   GuiStartFrame( gui )
-  GuiLayoutBeginVertical( gui, xpos, 30 )
+  GuiLayoutBeginVertical( gui, xpos, ypos )
   for idx, line in ipairs(twitch_display_lines) do
     GuiText(gui, 0, 0, line)
   end
@@ -69,6 +71,10 @@ function do_winner()
   if best_outcome.votes > 0 then
     GamePrintImportant(best_outcome.name, best_outcome.desc or "you voted for this")
     best_outcome:func()
+  elseif randomOnNoVotes then
+    local random_outcome = outcomes[math.random(1, 4)]
+    GamePrintImportant("Nobody voted!", "Random option choosen: " .. random_outcome.name)
+    random_outcome:func()
   else
     GamePrintImportant("Nobody voted!", "Remember to vote!")
   end
