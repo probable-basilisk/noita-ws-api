@@ -55,6 +55,8 @@ Then start up Noita. You should see a voting thingy on the right side--
 users in the specified twitch channel can type the appropriate numbers
 to vote on things to happen in your game.
 
+You can also create a .env file in your `servers`, to setup a default twitch account name to use, and the time for voting. See `servers/.env.example` for reference
+
 ## API Overview
 
 The `mod_ws` mod acts as a websocket client, and automatically tries to connect to `ws://localhost:9090`.
