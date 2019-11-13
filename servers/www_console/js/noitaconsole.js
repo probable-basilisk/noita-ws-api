@@ -78,6 +78,15 @@ function replPrint(message) {
     message = ansiRGB(100, 100, 255) + message + ansiReset();
   } else if(message.indexOf("EVAL>") == 0) {
     message = ansiRGB(100, 255, 100) + message + ansiReset();
+  } else if(message.indexOf("COM>") == 0) {
+    // see how many suggestions we got
+    let opts = message.slice(4).split(",");
+    if(opts.length == 1) {
+      // fill in this completion
+      lineWindow.setValue(opts[0]);
+      lineWindow.setCursor(lineWindow.lineCount(), 0);
+    }
+    message = ansiRGB(150, 150, 150) + message + ansiReset();
   }
   repl.writeln(message);
 }
@@ -114,7 +123,18 @@ function initCodeMirror() {
         commandHistory.push(val);
       }
       replPrint("EVAL> " + val);
-      lineWindow.setValue("");
+      cm.setValue("");
+    },
+    "Tab": function(cm) {
+      console.log("TAB");
+      const val = cm.getValue().trim();
+      if(val == "") {
+        return;
+      }
+      // Note that [=[ some string ]=] is a special Lua
+      // string literal that allows nesting of other string
+      // literals, including the more typical [[ ]] pair
+      remoteEval(`complete([=[${val}]=])`);
     },
     "Up": function(cm) {
       let hpos = commandHistory.indexOf(cm.getValue());

@@ -133,6 +133,10 @@ local function _dofile(fn)
   return s()
 end
 
+-- this empty table is used as a special value that will suppress
+-- printing any kind of "RES>" value (normally "[no value]" would print)
+local UNPRINTABLE_RESULT = {}
+
 local function _strinfo(v)
   if v == nil then return "nil" end
   local vtype = type(v)
@@ -153,6 +157,9 @@ local function strinfo(...)
   if nargs == 0 then
     return "[no value]"
   end
+  if nargs == 1 and select(1, ...) == UNPRINTABLE_RESULT then
+    return UNPRINTABLE_RESULT
+  end
   for idx = 1, nargs do
     frags[idx] = _strinfo(select(idx, ...))
   end
@@ -161,6 +168,58 @@ end
 
 local function info(...)
   cprint(strinfo(...))
+  return UNPRINTABLE_RESULT
+end
+
+-- (from http://lua-users.org/wiki/SplitJoin)
+local strfind = string.find
+local tinsert = table.insert
+local strsub = string.sub
+local function strsplit(text, delimiter)
+  local list = {}
+  local pos = 1
+  if strfind("", delimiter, 1) then -- this would result in endless loops
+    error("Delimiter matches empty string!")
+  end
+  while 1 do
+    local first, last = strfind(text, delimiter, pos)
+    if first then -- found?
+      tinsert(list, strsub(text, pos, first-1))
+      pos = last+1
+    else
+      tinsert(list, strsub(text, pos))
+      break
+    end
+  end
+  return list
+end
+
+local function complete(s)
+  local opts = {}
+
+  local parts = strsplit(s, "%.") -- strsplit takes a pattern, so have to escape "."
+  local cur = console_env
+  local prefix = ""
+  for idx = 1, (#parts) - 1 do
+    cur = cur[parts[idx]]
+    if not cur then return UNPRINTABLE_RESULT end
+    prefix = prefix .. parts[idx] .. "."
+  end
+  if type(cur) ~= "table" then return UNPRINTABLE_RESULT end
+  local lastpart = parts[#parts]
+  if not lastpart then return UNPRINTABLE_RESULT end
+  for k, _ in pairs(cur) do
+    if k:find(lastpart) == 1 then
+      table.insert(opts, k)
+    end
+  end
+  table.sort(opts)
+  if #opts == 1 then
+    cprint("COM>" .. prefix .. opts[1])
+  elseif #opts > 1 then
+    cprint("COM>" .. table.concat(opts, ","))
+  end
+  return UNPRINTABLE_RESULT
 end
 
 local function new_console_env()
@@ -168,6 +227,7 @@ local function new_console_env()
   for k, v in pairs(getfenv()) do
     console_env[k] = v
   end
+  console_env.complete = complete
   console_env.new_console_env = new_console_env
   console_env.set_print_to_socket = set_print_to_socket
   console_env.print = cprint
@@ -181,6 +241,7 @@ local function new_console_env()
   console_env.strinfo = strinfo
   console_env.info = info
   console_env.dofile = _dofile
+  console_env.UNPRINTABLE_RESULT = UNPRINTABLE_RESULT
   
   reload_utils()
 end
@@ -211,7 +272,9 @@ local function do_command(msg)
   setfenv(f, console_env)
   local happy, retval = _collect(pcall(f))
   if happy then
-    cprint("RES> " .. tostring(retval))
+    if retval ~= UNPRINTABLE_RESULT then
+      cprint("RES> " .. tostring(retval))
+    end
   else
     cprint("ERR> " .. tostring(retval))
   end
