@@ -70,6 +70,28 @@ function remoteEval(code) {
   }
 }
 
+function longestSharedPrefix(a, b) {
+  let nchars = Math.min(a.length, b.length);
+  let prefixLength = 0;
+  for(prefixLength = 0; prefixLength < nchars; ++prefixLength) {
+    if(a[prefixLength] != b[prefixLength]) {
+      break;
+    }
+  }
+  return a.slice(0, prefixLength);
+}
+
+function longestSetPrefix(opts) {
+  if(opts.length == 0) {
+    return ""
+  }
+  let curPrefix = opts[0];
+  for(let idx = 1; idx < opts.length; ++idx) {
+    curPrefix = longestSharedPrefix(curPrefix, opts[idx]);
+  }
+  return curPrefix;
+}
+
 function replPrint(message) {
   message = message.replace(/\n/g, "\r\n");
   if(message.indexOf("ERR>") == 0) {
@@ -80,10 +102,16 @@ function replPrint(message) {
     message = ansiRGB(100, 255, 100) + message + ansiReset();
   } else if(message.indexOf("COM>") == 0) {
     // see how many suggestions we got
-    let opts = message.slice(4).split(",");
-    if(opts.length == 1) {
+    let parts = message.slice(4).split(" ");
+    let prefix = parts[0];
+    let opts = parts[1].split(",");
+    if(opts.length == 1 && opts[0] != "") {
       // fill in this completion
-      lineWindow.setValue(opts[0]);
+      lineWindow.setValue(prefix + opts[0]);
+      lineWindow.setCursor(lineWindow.lineCount(), 0);
+    } else if(opts.length > 1) {
+      let completion = longestSetPrefix(opts);
+      lineWindow.setValue(prefix + completion);
       lineWindow.setCursor(lineWindow.lineCount(), 0);
     }
     message = ansiRGB(150, 150, 150) + message + ansiReset();
@@ -114,9 +142,12 @@ function initCodeMirror() {
 
   lineWindow.setOption("extraKeys", {
     "Enter": function(cm) {
-      const val = cm.getValue();
+      let val = cm.getValue();
       if(val == "") {
         return;
+      }
+      if(val.slice(-1) == "?") {
+        val = 'help("' + val.slice(0,-1) + '")'
       }
       remoteEval(val);
       if(commandHistory.indexOf(val) < 0) {

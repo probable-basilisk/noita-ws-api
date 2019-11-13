@@ -4,6 +4,33 @@ if not async then
   dofile( "data/scripts/lib/coroutines.lua" )
 end
 
+-- this empty table is used as a special value that will suppress
+-- printing any kind of "RES>" value (normally "[no value]" would print)
+local UNPRINTABLE_RESULT = {}
+
+-- (from http://lua-users.org/wiki/SplitJoin)
+local strfind = string.find
+local tinsert = table.insert
+local strsub = string.sub
+local function strsplit(text, delimiter)
+  local list = {}
+  local pos = 1
+  if strfind("", delimiter, 1) then -- this would result in endless loops
+    error("Delimiter matches empty string!")
+  end
+  while 1 do
+    local first, last = strfind(text, delimiter, pos)
+    if first then -- found?
+      tinsert(list, strsub(text, pos, first-1))
+      pos = last+1
+    else
+      tinsert(list, strsub(text, pos))
+      break
+    end
+  end
+  return list
+end
+
 if not pollws then
   print("Attempting to link pollws.dll through FFI")
   local ffi = ffi or _G.ffi or require("ffi")
@@ -133,9 +160,35 @@ local function _dofile(fn)
   return s()
 end
 
--- this empty table is used as a special value that will suppress
--- printing any kind of "RES>" value (normally "[no value]" would print)
-local UNPRINTABLE_RESULT = {}
+local _help_info = nil
+local function reload_help(fn)
+  fn = fn or "tools_modding/lua_api_documentation.txt"
+  local f, err = io.open(fn)
+  if not f then error("Couldn't open " .. fn) end
+  local res = f:read("*a")
+  f:close()
+  if not res then error("Couldn't read " .. fn) end
+  _help_info = {}
+  res = res:gsub("\r", "") -- get rid of horrible carriage returns
+  local lines = strsplit(res, "\n")
+  for _, line in ipairs(lines) do
+    local paren_idx = line:find("%(")
+    if paren_idx then
+      local funcname = line:sub(1, paren_idx-1)
+      _help_info[funcname] = line
+    end
+  end
+end
+
+local function help_str(funcname)
+  if not _help_info then reload_help() end
+  return _help_info[funcname]
+end
+
+local function help(funcname)
+  cprint(help_str(funcname) or (funcname .. "-> [no help available]"))
+  return UNPRINTABLE_RESULT
+end
 
 local function _strinfo(v)
   if v == nil then return "nil" end
@@ -171,29 +224,6 @@ local function info(...)
   return UNPRINTABLE_RESULT
 end
 
--- (from http://lua-users.org/wiki/SplitJoin)
-local strfind = string.find
-local tinsert = table.insert
-local strsub = string.sub
-local function strsplit(text, delimiter)
-  local list = {}
-  local pos = 1
-  if strfind("", delimiter, 1) then -- this would result in endless loops
-    error("Delimiter matches empty string!")
-  end
-  while 1 do
-    local first, last = strfind(text, delimiter, pos)
-    if first then -- found?
-      tinsert(list, strsub(text, pos, first-1))
-      pos = last+1
-    else
-      tinsert(list, strsub(text, pos))
-      break
-    end
-  end
-  return list
-end
-
 local function complete(s)
   local opts = {}
 
@@ -213,11 +243,9 @@ local function complete(s)
       table.insert(opts, k)
     end
   end
-  table.sort(opts)
-  if #opts == 1 then
-    cprint("COM>" .. prefix .. opts[1])
-  elseif #opts > 1 then
-    cprint("COM>" .. table.concat(opts, ","))
+  if #opts > 0 then
+    table.sort(opts)
+    cprint("COM>" .. prefix .. " " .. table.concat(opts, ","))
   end
   return UNPRINTABLE_RESULT
 end
@@ -241,6 +269,9 @@ local function new_console_env()
   console_env.strinfo = strinfo
   console_env.info = info
   console_env.dofile = _dofile
+  console_env.reload_help = reload_help
+  console_env.help_str = help_str
+  console_env.help = help
   console_env.UNPRINTABLE_RESULT = UNPRINTABLE_RESULT
   
   reload_utils()
