@@ -43,7 +43,12 @@ and then you can directly execute Lua commands from the webconsole. For example,
 hello()
 GamePrintImportant("Big Message", "Sub Message")
 print_entity_info(get_player())
+help("EntityGetTransform")
 ```
+
+Note that there is rudimentary command completion with <kbd>Tab</kbd>, and that
+you can get help (if available) for Noita's API with `help("command")` or 
+simply `command?`.
 
 ## Example: twitch interaction
 From the `servers` directory, run:
