@@ -1,4 +1,6 @@
+dofile("data/scripts/lib/utilities.lua")
 dofile("data/scripts/perks/perk.lua")
+dofile("data/scripts/perks/perk_list.lua")
 
 local function insert_constant(outcome)
   table.insert(outcome_generators, function()
