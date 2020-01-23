@@ -91,6 +91,10 @@ local function set_scratch_size(scratch_size)
   main_socket:set_scratch_size(scratch_size)
 end
 
+local function socket_send(msg)
+  main_socket:send(msg)
+end
+
 local function socket_print(str)
   local msg = ">" .. str
   main_socket:send(msg)
@@ -145,7 +149,8 @@ end
 
 local function run_persistent_funcs()
   for fname, f in pairs(_persistent_funcs) do
-    pcall(f, fname)
+    local happy, err = pcall(f, fname)
+    if not happy then cprint(err) end
   end
 end
 
@@ -261,6 +266,7 @@ local function new_console_env()
   console_env.print = cprint
   console_env.print_table = cprint_table
   console_env.socket_print = socket_print
+  console_env.socket_send = socket_send
   console_env.rawprint = print
   console_env.reload_utils = reload_utils
   console_env.add_persistent_func = add_persistent_func

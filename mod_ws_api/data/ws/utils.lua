@@ -37,13 +37,30 @@ function spawn_entity(ename, offset_x, offset_y)
 end
 
 function print_component_info(c)
+  local frags = {"<" .. ComponentGetTypeName(c) .. ">"}
   local members = ComponentGetMembers(c)
   if not members then return end
-  local frags = {}
   for k, v in pairs(members) do
     table.insert(frags, k .. ': ' .. tostring(v))
   end
   print(table.concat(frags, '\n'))
+end
+
+function get_vector_value(comp, member, kind)
+  kind = kind or "float"
+  local n = ComponentGetVectorSize( comp, member, kind )
+  if not n then return nil end
+  local ret = {};
+  for i = 1, n do
+    ret[i] = ComponentGetVectorValue(comp, member, kind, i-1) or "nil"
+  end
+  return ret
+end
+
+function print_vector_value(...)
+  local v = get_vector_value(...)
+  if not v then return nil end
+  return "{" .. table.concat(v, ", ") .. "}"
 end
 
 function print_detailed_component_info(c)
@@ -52,14 +69,14 @@ function print_detailed_component_info(c)
   local frags = {}
   for k, v in pairs(members) do
     if (not v) or #v == 0 then
-      local mems = ComponentObjectGetMembers(10, k)
+      local mems = ComponentObjectGetMembers(c, k)
       if mems then
         table.insert(frags, k .. ">")
         for k2, v2 in pairs(mems) do
           table.insert(frags, "  " .. k2 .. ": " .. tostring(v2))
         end
       else
-        v = "?"
+        v = print_vector_value(c, k)
       end
     end
     table.insert(frags, k .. ': ' .. tostring(v))
@@ -77,6 +94,17 @@ function print_entity_info(e)
   for idx, comp in ipairs(comps) do
     print(comp, "-----------------")
     print_component_info(comp)
+  end
+end
+
+function list_components(e)
+  local comps = EntityGetAllComponents(e)
+  if not comps then
+    print("Invalid entity?")
+    return
+  end
+  for idx, comp in ipairs(comps) do
+    print(comp .. " : " .. ComponentGetTypeName(comp))
   end
 end
 
