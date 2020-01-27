@@ -1,3 +1,5 @@
+if async then return end -- guard against multiple "includes"
+
 -- coroutine runtime ---------------------------------------------------------
 -- FIXME: stolen from https://github.com/ecbambrick/UntitledGame/tree/master/src/lib
 

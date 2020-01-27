@@ -1,9 +1,6 @@
-local HOST_URL = "ws://localhost:9090"
-
-if not async then
-  dofile( "data/ws/coroutines.lua" )
-  --dofile( "data/scripts/lib/coroutines.lua" )
-end
+dofile("data/ws/pollws.lua")
+dofile("data/ws/host.lua")
+dofile("data/ws/coroutines.lua")
 
 -- this empty table is used as a special value that will suppress
 -- printing any kind of "RES>" value (normally "[no value]" would print)
@@ -32,64 +29,15 @@ local function strsplit(text, delimiter)
   return list
 end
 
-if not pollws then
-  print("Attempting to link pollws.dll through FFI")
-  local ffi = ffi or _G.ffi or require("ffi")
-  ffi.cdef[[
-  struct pollsocket* pollws_open(const char* url);
-  void pollws_close(struct pollsocket* ctx);
-  int pollws_status(struct pollsocket* ctx);
-  void pollws_send(struct pollsocket* ctx, const char* msg);
-  int pollws_poll(struct pollsocket* ctx);
-  unsigned int pollws_get(struct pollsocket* ctx, char* dest, unsigned int dest_size);
-  unsigned int pollws_pop(struct pollsocket* ctx, char* dest, unsigned int dest_size);
-  ]]
-  print("CDEF was OK")
-  pollws = ffi.load("pollws")
-  print("FFI was OK")
-
-  function open_socket(url, scratch_size)
-    -- might as well have a comfortable megabyte of space
-    if not scratch_size then scratch_size = 1000000 end
-    local res = {
-      _socket = pollws.pollws_open(url),
-      _scratch = ffi.new("int8_t[?]", scratch_size),
-      _scratch_size = scratch_size
-    }
-    function res:set_scratch_size(scratch_size)
-      self._scratch = ffi.new("int8_t[?]", scratch_size)
-      self._scratch_size = scratch_size
-    end
-    function res:poll()
-      if not self._socket then return end
-      local msg_size = pollws.pollws_pop(self._socket, self._scratch, self._scratch_size)
-      if msg_size > 0 then
-        local smsg = ffi.string(self._scratch, msg_size)
-        return smsg
-      else
-        return nil
-      end
-    end
-    function res:send(msg)
-      if not self._socket then return end
-      pollws.pollws_send(self._socket, msg)
-    end
-    function res:close()
-      pollws.pollws_close(self._socket)
-      self._socket = nil
-    end
-    return res
-  end
-end
-
 local main_socket = nil
 
 local function reconnect(url)
-  main_socket = open_socket(url or HOST_URL)
+  url = url or get_ws_host_url() -- comes from data/ws/host.lua
+  if not url then return false end
+  GamePrint("ws-api: trying to connect to " .. url)
+  main_socket = open_socket(url)
   main_socket:poll()
 end
-
-reconnect()
 
 local printing_to_socket = false
 
@@ -109,7 +57,7 @@ end
 
 function cprint(...)
   local m = table.concat({...}, " ")
-  if printing_to_socket then
+  if main_socket and printing_to_socket then
     socket_print(m)
   else
     print(m)
@@ -328,14 +276,18 @@ end
 local count = 0
 
 _ws_main = function()
-  local msg = main_socket:poll()
-  if msg then
-    do_command(msg)
+  if main_socket then
+    local msg = main_socket:poll()
+    if msg then
+      do_command(msg)
+    end
+    if count % 60 == 0 then
+      main_socket:send('{"kind": "heartbeat", "source": "noita"}')
+    end
+    run_persistent_funcs()
+  elseif count % 60 == 0 then
+    reconnect()
   end
-  count = count + 1
-  if count % 60 == 0 then
-    main_socket:send('{"kind": "heartbeat", "source": "noita"}')
-  end
-  run_persistent_funcs()
   wake_up_waiting_threads(1) -- from coroutines.lua
+  count = count + 1
 end
