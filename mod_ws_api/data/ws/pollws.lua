@@ -15,6 +15,14 @@ print("CDEF was OK")
 pollws = ffi.load("pollws")
 print("FFI was OK")
 
+local POLLWS_STATUS_CODES = {
+  [-1] = "invalid",
+  [ 0] = "closed",
+  [ 1] = "opening",
+  [ 2] = "open",
+  [ 3] = "error"
+}
+
 function open_socket(url, scratch_size)
   -- might as well have a comfortable megabyte of space
   if not scratch_size then scratch_size = 1000000 end
@@ -45,5 +53,26 @@ function open_socket(url, scratch_size)
     pollws.pollws_close(self._socket)
     self._socket = nil
   end
+  function res:raw_status()
+    if not self._socket then return -1 end
+    return pollws.pollws_status(self._socket)
+  end
+  function res:status()
+    return POLLWS_STATUS_CODES[self:raw_status()] or "unknown"
+  end
+  function res:run_async(on_message)
+    self.running = true
+    async(function()
+      while self._socket and self.running do
+        local msg = self:poll()
+        if msg then on_message(self, msg) end
+        wait(1)
+      end
+    end)
+  end
+  function res:stop()
+    self.running = false
+  end
+
   return res
 end
