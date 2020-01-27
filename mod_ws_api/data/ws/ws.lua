@@ -1,7 +1,8 @@
 local HOST_URL = "ws://localhost:9090"
 
 if not async then
-  dofile( "data/scripts/lib/coroutines.lua" )
+  dofile( "data/ws/coroutines.lua" )
+  --dofile( "data/scripts/lib/coroutines.lua" )
 end
 
 -- this empty table is used as a special value that will suppress
@@ -81,8 +82,14 @@ if not pollws then
   end
 end
 
-local main_socket = open_socket(HOST_URL)
-main_socket:poll()
+local main_socket = nil
+
+local function reconnect(url)
+  main_socket = open_socket(url or HOST_URL)
+  main_socket:poll()
+end
+
+reconnect()
 
 local printing_to_socket = false
 
@@ -100,7 +107,7 @@ local function socket_print(str)
   main_socket:send(msg)
 end
 
-local function cprint(...)
+function cprint(...)
   local m = table.concat({...}, " ")
   if printing_to_socket then
     socket_print(m)
@@ -260,6 +267,7 @@ local function new_console_env()
   for k, v in pairs(getfenv()) do
     console_env[k] = v
   end
+  console_env.reconnect = reconnect
   console_env.complete = complete
   console_env.new_console_env = new_console_env
   console_env.set_print_to_socket = set_print_to_socket
